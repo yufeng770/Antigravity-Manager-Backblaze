@@ -55,6 +55,20 @@ restore() {
   if curl --fail --silent --show-error --location -o "$BACKUP_FILE" \
       -H "Authorization: $B2_TOKEN" \
       "$B2_DOWNLOAD/file/$B2_BUCKET_NAME/$B2_PREFIX"; then
+    local size
+    size=$(stat -c '%s' "$BACKUP_FILE" 2>/dev/null || wc -c < "$BACKUP_FILE")
+    echo "[B2] downloaded backup size: ${size} bytes"
+    echo '[B2] archive contents (first 30 entries):'
+    tar -tzf "$BACKUP_FILE" | head -30 || {
+      echo '[B2] downloaded object is not a valid gzip archive'
+      rm -f "$BACKUP_FILE"
+      return 0
+    }
+    if ! tar -tzf "$BACKUP_FILE" | grep -qE '^\\.antigravity_tools(/|$)'; then
+      echo '[B2] archive does not contain .antigravity_tools; refusing restore'
+      rm -f "$BACKUP_FILE"
+      return 0
+    fi
     tar -xzf "$BACKUP_FILE" -C /
     echo "[B2] restore succeeded (file id $file_id)"
     echo '[B2] restored top-level files:'
