@@ -57,6 +57,15 @@ restore() {
       "$B2_DOWNLOAD/file/$B2_BUCKET_NAME/$B2_PREFIX"; then
     tar -xzf "$BACKUP_FILE" -C /
     echo "[B2] restore succeeded (file id $file_id)"
+    echo '[B2] restored top-level files:'
+    find "$DATA_DIR" -maxdepth 2 -type f -printf '%p (%s bytes)\n' 2>/dev/null | sort || true
+    echo '[B2] restored account files:'
+    find "$DATA_DIR/accounts" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort || true
+    if [[ -f "$DATA_DIR/user_tokens.db" ]]; then
+      echo '[B2] restored user token rows:'
+      sqlite3 "$DATA_DIR/user_tokens.db" -header -column \
+        'SELECT username, enabled FROM user_tokens;' 2>/dev/null || true
+    fi
   else
     rm -f "$BACKUP_FILE"
     echo '[B2] restore download failed'
