@@ -95,8 +95,13 @@ APP_PID=$!
 trap 'kill -TERM "$APP_PID" 2>/dev/null || true; wait "$APP_PID"' TERM INT
 
 while kill -0 "$APP_PID" 2>/dev/null; do
-  sleep "${BACKUP_INTERVAL_SECONDS:-900}"
+  now=$(TZ=Asia/Shanghai date +%H:%M)
+  if [[ "$now" == '00:00' || "$now" == '12:00' ]]; then
+    backup || echo '[B2] scheduled backup failed'
+    sleep 61
+  else
+    sleep 20
+  fi
   kill -0 "$APP_PID" 2>/dev/null || break
-  backup || echo '[B2] backup failed'
 done
 wait "$APP_PID"
