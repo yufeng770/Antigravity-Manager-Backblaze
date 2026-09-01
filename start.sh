@@ -64,6 +64,6 @@ trap 'kill -TERM "$APP_PID" 2>/dev/null || true; wait "$APP_PID"' TERM INT
 while kill -0 "$APP_PID" 2>/dev/null; do
   sleep "${BACKUP_INTERVAL_SECONDS:-900}"
   kill -0 "$APP_PID" 2>/dev/null || break
-  backup || echo 'R2 backup failed'
+  backup || echo 'B2 backup failed'
 done
 wait "$APP_PID"
