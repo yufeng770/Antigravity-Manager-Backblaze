@@ -64,7 +64,7 @@ restore() {
       rm -f "$BACKUP_FILE"
       return 0
     }
-    if ! tar -tzf "$BACKUP_FILE" | grep -qE '^\\.antigravity_tools(/|$)'; then
+    if ! tar -tzf "$BACKUP_FILE" | grep -qE '^\.antigravity_tools(/|$)'; then
       echo '[B2] archive does not contain .antigravity_tools; refusing restore'
       rm -f "$BACKUP_FILE"
       return 0
