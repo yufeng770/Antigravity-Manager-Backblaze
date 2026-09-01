@@ -69,7 +69,8 @@ restore() {
       rm -f "$BACKUP_FILE"
       return 0
     fi
-    tar -xzf "$BACKUP_FILE" -C /
+    # Archive paths are relative to the root user's home directory.
+    tar -xzf "$BACKUP_FILE" -C /root
     echo "[B2] restore succeeded (file id $file_id)"
     echo '[B2] restored top-level files:'
     find "$DATA_DIR" -maxdepth 2 -type f -printf '%p (%s bytes)\n' 2>/dev/null | sort || true
