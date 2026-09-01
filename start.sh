@@ -15,7 +15,10 @@ B2_UPLOAD_URL=""
 B2_UPLOAD_TOKEN=""
 
 b2_auth() {
-  [[ -n "$B2_KEY_ID" && -n "$B2_APP_KEY" && -n "$B2_BUCKET_ID" && -n "$B2_BUCKET_NAME" ]] || return 1
+  if [[ -z "$B2_KEY_ID" || -z "$B2_APP_KEY" || -z "$B2_BUCKET_ID" || -z "$B2_BUCKET_NAME" ]]; then
+    echo '[B2] missing B2 configuration; skipping'
+    return 1
+  fi
   local response
   response=$(curl --fail --silent --user "$B2_KEY_ID:$B2_APP_KEY" https://api.backblazeb2.com/b2api/v2/b2_authorize_account)
   B2_API=$(jq -r .apiUrl <<<"$response")
@@ -24,6 +27,7 @@ b2_auth() {
 }
 
 backup() {
+  echo "[B2] backup started at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   b2_auth || return 0
   tar -czf "$BACKUP_FILE" -C /root .antigravity_tools
   local upload
@@ -37,22 +41,25 @@ backup() {
     -H "Authorization: $B2_UPLOAD_TOKEN" -H "X-Bz-File-Name: $B2_PREFIX" \
     -H "Content-Type: application/gzip" -H "X-Bz-Content-Sha1: $sha" \
     --data-binary "@$BACKUP_FILE" >/dev/null
+  echo "[B2] backup upload succeeded ($(stat -c '%s' "$BACKUP_FILE") bytes)"
 }
 
 restore() {
+  echo '[B2] restore check started'
   b2_auth || return 0
   local response file_id
   response=$(curl --fail --silent -X POST "$B2_API/b2api/v2/b2_list_file_names" \
     -H "Authorization: $B2_TOKEN" -d "{\"bucketId\":\"$B2_BUCKET_ID\",\"prefix\":\"$B2_PREFIX\",\"maxFileCount\":1}") || return 0
   file_id=$(jq -r '.files[0].fileId // empty' <<<"$response")
-  [[ -n "$file_id" ]] || return 0
+  if [[ -z "$file_id" ]]; then echo '[B2] no backup found; starting with empty data'; return 0; fi
   if curl --fail --silent --show-error --location -o "$BACKUP_FILE" \
       -H "Authorization: $B2_TOKEN" \
       "$B2_DOWNLOAD/file/$B2_BUCKET_NAME/$B2_PREFIX"; then
     tar -xzf "$BACKUP_FILE" -C /
-    echo 'B2 backup restored'
+    echo "[B2] restore succeeded (file id $file_id)"
   else
     rm -f "$BACKUP_FILE"
+    echo '[B2] restore download failed'
   fi
 }
 
@@ -64,6 +71,6 @@ trap 'kill -TERM "$APP_PID" 2>/dev/null || true; wait "$APP_PID"' TERM INT
 while kill -0 "$APP_PID" 2>/dev/null; do
   sleep "${BACKUP_INTERVAL_SECONDS:-900}"
   kill -0 "$APP_PID" 2>/dev/null || break
-  backup || echo 'B2 backup failed'
+  backup || echo '[B2] backup failed'
 done
 wait "$APP_PID"
