@@ -24,6 +24,6 @@ Do not add a Dockerfile path: `Dockerfile` is at the root of this new repository
 
 1. Create a private B2 bucket.
 2. Create an application key restricted to that bucket with `readFiles`, `writeFiles`, and `listFiles` permissions.
-3. Copy the key ID, application key, and bucket ID into Render variables.
+3. Copy the key ID, application key, bucket ID, and bucket name into Render variables. The application key's display name is not used.
 
 The first boot is empty because no B2 backup exists. Subsequent starts restore the saved `/root/.antigravity_tools` directory.

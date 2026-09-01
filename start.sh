@@ -9,15 +9,17 @@ B2_BUCKET_ID="${B2_BUCKET_ID:-}"
 B2_BUCKET_NAME="${B2_BUCKET_NAME:-}"
 B2_PREFIX="${B2_PREFIX:-antigravity/backup.tar.gz}"
 B2_API=""
+B2_DOWNLOAD=""
 B2_TOKEN=""
 B2_UPLOAD_URL=""
 B2_UPLOAD_TOKEN=""
 
 b2_auth() {
-  [[ -n "$B2_KEY_ID" && -n "$B2_APP_KEY" && -n "$B2_BUCKET_ID" ]] || return 1
+  [[ -n "$B2_KEY_ID" && -n "$B2_APP_KEY" && -n "$B2_BUCKET_ID" && -n "$B2_BUCKET_NAME" ]] || return 1
   local response
   response=$(curl --fail --silent --user "$B2_KEY_ID:$B2_APP_KEY" https://api.backblazeb2.com/b2api/v2/b2_authorize_account)
   B2_API=$(jq -r .apiUrl <<<"$response")
+  B2_DOWNLOAD=$(jq -r .downloadUrl <<<"$response")
   B2_TOKEN=$(jq -r .authorizationToken <<<"$response")
 }
 
@@ -39,14 +41,14 @@ backup() {
 
 restore() {
   b2_auth || return 0
-  local response download_url file_id
+  local response file_id
   response=$(curl --fail --silent -X POST "$B2_API/b2api/v2/b2_list_file_names" \
     -H "Authorization: $B2_TOKEN" -d "{\"bucketId\":\"$B2_BUCKET_ID\",\"prefix\":\"$B2_PREFIX\",\"maxFileCount\":1}") || return 0
   file_id=$(jq -r '.files[0].fileId // empty' <<<"$response")
   [[ -n "$file_id" ]] || return 0
-  download_url=$(jq -r .downloadUrl <<<"$response")
   if curl --fail --silent --show-error --location -o "$BACKUP_FILE" \
-      "$download_url/file/$B2_BUCKET_NAME/$B2_PREFIX"; then
+      -H "Authorization: $B2_TOKEN" \
+      "$B2_DOWNLOAD/file/$B2_BUCKET_NAME/$B2_PREFIX"; then
     tar -xzf "$BACKUP_FILE" -C /
     echo 'B2 backup restored'
   else
